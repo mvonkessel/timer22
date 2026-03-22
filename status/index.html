@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f8f6f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="description" content="Live Pomodoro Status">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Moritz Status</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f8f6f1;--surface:#ffffff;--surface-2:#f0ede6;--border:#e0ddd4;--text:#1a1a1e;--dim:#6a6a78;--dim2:#9a9aa4;--accent:#3eba6f;--accent-glow:rgba(62,186,111,0.08);--red:#c82533;--red-soft:#d44;--red-glow:rgba(200,37,51,0.06);--yellow:#b08820;--blue:#3080c0;--radius:16px;--radius-sm:10px;--shadow:0 1px 3px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04)}
+  *{margin:0;padding:0;box-sizing:border-box}html{height:100%}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100%;min-height:100dvh;display:flex;align-items:flex-start;justify-content:center;padding:1.2rem;-webkit-font-smoothing:antialiased}
+  .app{width:100%;max-width:420px;padding-top:.5rem}
+  .header{text-align:center;margin-bottom:1.2rem}
+  .header h1{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;color:var(--dim2);margin-bottom:.15rem}
+  .header .subtitle{font-size:.7rem;color:var(--dim)}
+  .status-card{background:var(--surface);border-radius:var(--radius);padding:1.3rem;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:.8rem;transition:all .5s}
+  .status-card.running{border-color:var(--accent);background:rgba(62,186,111,.02)}
+  .status-card.paused{border-color:var(--yellow)}
+  .status-card.completed{border-color:var(--accent)}
+  .status-card.break{border-color:var(--blue)}
+  .status-card.working{border-color:var(--blue);background:rgba(48,128,192,.02)}
+  .status-card.idle.shaming{border-color:var(--red);background:var(--red-glow);animation:shameCardPulse 1.5s ease-in-out infinite}
+  .status-card.offline{border-color:var(--border);opacity:.6}
+  .status-card.disconnected{border-color:var(--yellow)}
+  @keyframes shameCardPulse{0%,100%{box-shadow:var(--shadow)}50%{box-shadow:0 0 20px rgba(200,37,51,.12),var(--shadow)}}
+  .status-indicator{display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--dim2);flex-shrink:0;transition:background .3s}
+  .running .status-dot{background:var(--accent);box-shadow:0 0 8px var(--accent-glow);animation:pulse 2s infinite}
+  .paused .status-dot{background:var(--yellow);animation:pulse 3s infinite}
+  .completed .status-dot{background:var(--accent)}.break .status-dot{background:var(--blue)}
+  .working .status-dot{background:var(--blue);animation:pulse 2s infinite}
+  .idle .status-dot{background:var(--dim2)}
+  .idle.shaming .status-dot{background:var(--red);animation:shamePulse .8s infinite}
+  .offline .status-dot{background:#ccc}.disconnected .status-dot{background:var(--yellow);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes shamePulse{0%,100%{opacity:1;box-shadow:0 0 12px rgba(200,37,51,.5)}50%{opacity:.4;box-shadow:none}}
+  .status-label{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+  .running .status-label{color:var(--accent)}.paused .status-label{color:var(--yellow)}
+  .break .status-label{color:var(--blue)}.working .status-label{color:var(--blue)}
+  .idle.shaming .status-label{color:var(--red)}.disconnected .status-label{color:var(--yellow)}
+  .task-name{font-size:1.3rem;font-weight:700;margin-bottom:.4rem;min-height:1.8rem;transition:color .3s}
+  .timer-display{font-family:'JetBrains Mono',monospace;font-size:2.6rem;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-bottom:.4rem;min-height:3rem;transition:opacity .3s}
+  .timer-display.inactive{opacity:.15;font-size:1.8rem}
+  .timer-end{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--dim);letter-spacing:.04em;min-height:.8rem}
+  .location-row{display:flex;align-items:center;gap:.4rem;margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--surface-2);font-size:.7rem;color:var(--dim)}
+  .location-icon{font-size:.9rem}
+  .shame-banner{display:none;background:var(--red-glow);border:2px solid var(--red);border-radius:var(--radius-sm);padding:.9rem 1rem;margin-bottom:.8rem;text-align:center;animation:shameBannerPulse 1.2s ease-in-out infinite}
+  .shame-banner.active{display:block}
+  .shame-banner-title{font-family:'JetBrains Mono',monospace;font-size:.55rem;font-weight:700;color:var(--red);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.15rem}
+  .shame-banner-time{font-size:1.8rem;font-weight:700;color:var(--red)}
+  .shame-banner-sub{font-size:.65rem;color:var(--dim);margin-top:.2rem;line-height:1.4}
+  .shame-banner-total{font-family:'JetBrains Mono',monospace;font-size:.48rem;color:var(--red);opacity:.7;margin-top:.25rem;letter-spacing:.06em}
+  @keyframes shameBannerPulse{0%,100%{border-color:var(--red);transform:scale(1)}50%{border-color:rgba(200,37,51,.3);transform:scale(1.005)}}
+  .day-summary{background:var(--surface);border-radius:var(--radius-sm);padding:.8rem 1rem;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:.8rem}
+  .day-summary-title{font-family:'JetBrains Mono',monospace;font-size:.45rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim2);margin-bottom:.6rem}
+  .day-row{display:flex;justify-content:space-between;align-items:center;padding:.25rem 0}
+  .day-row-label{font-size:.72rem;color:var(--dim)}.day-row-value{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:700}
+  .day-row-value.work{color:var(--blue)}.day-row-value.focus{color:var(--accent)}.day-row-value.idle{color:var(--red)}.day-row-value.ratio{color:var(--text)}
+  .ratio-bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin-top:.4rem;display:flex}
+  .ratio-fill-work{background:var(--blue);transition:width .8s}.ratio-fill-focus{background:var(--accent);transition:width .8s}.ratio-fill-idle{background:var(--red-soft);transition:width .8s}
+  .day-divider{border:none;border-top:1px solid var(--surface-2);margin:.35rem 0}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.8rem}
+  .stat-box{background:var(--surface);border-radius:var(--radius-sm);padding:.6rem .5rem;box-shadow:var(--shadow);border:1px solid var(--border);text-align:center}
+  .stat-value{font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--text)}
+  .stat-label{font-size:.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:.1rem}
+  .goal-section{margin-bottom:.8rem;background:var(--surface);border-radius:var(--radius-sm);padding:.65rem .9rem;box-shadow:var(--shadow);border:1px solid var(--border)}
+  .goal-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem}
+  .goal-label{font-family:'JetBrains Mono',monospace;font-size:.45rem;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+  .goal-value{font-family:'JetBrains Mono',monospace;font-size:.48rem;color:var(--dim)}.goal-value .gv{color:var(--text);font-weight:700;font-size:.52rem}.goal-value .gdone{color:var(--accent)}
+  .goal-track{height:5px;background:var(--surface-2);border-radius:4px;overflow:hidden;position:relative}
+  .goal-fill{height:100%;border-radius:4px;transition:width .8s cubic-bezier(.16,1,.3,1),background .3s}
+  .goal-fill.under{background:var(--accent)}.goal-fill.done{background:var(--yellow);box-shadow:0 0 8px rgba(176,136,32,0.15)}
+  .goal-milestone{position:absolute;top:-1px;width:2px;height:7px;background:var(--dim2);border-radius:1px;opacity:.3}.goal-milestone.hit{background:var(--yellow);opacity:.7}
+  .rank-row{display:flex;align-items:center;justify-content:center;gap:.4rem;margin-bottom:.6rem;flex-wrap:wrap}
+  .rank-icon{font-size:1.1rem}.rank-name{font-family:'JetBrains Mono',monospace;font-size:.58rem;font-weight:700;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+  .rank-xp{font-family:'JetBrains Mono',monospace;font-size:.42rem;color:var(--dim2)}
+  .streak-badge{font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--yellow);background:rgba(176,136,32,0.08);padding:2px 7px;border-radius:4px;border:1px solid rgba(176,136,32,0.2)}
+  .shield-badge{font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--yellow);letter-spacing:.1em}
+  .footer{text-align:center;padding-top:.3rem}.last-update{font-family:'JetBrains Mono',monospace;font-size:.44rem;color:var(--dim2);letter-spacing:.04em}
+  .conn-banner{text-align:center;font-size:.65rem;padding:.45rem;border-radius:var(--radius-sm);margin-bottom:.8rem;display:none}
+  .conn-banner.error{display:block;background:rgba(200,37,51,0.06);color:var(--red);border:1px solid rgba(200,37,51,0.15)}
+  .conn-banner.connecting{display:block;background:rgba(176,136,32,0.06);color:var(--yellow);border:1px solid rgba(176,136,32,0.15)}
+  .notif-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.65rem .9rem;margin-bottom:.8rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;box-shadow:var(--shadow)}
+  .notif-bar.hidden{display:none}.notif-text{font-size:.7rem;color:var(--dim)}
+  .notif-btn{font-family:'DM Sans',sans-serif;font-size:.65rem;font-weight:600;background:var(--accent);color:#fff;border:none;padding:.35rem .7rem;border-radius:6px;cursor:pointer;white-space:nowrap}.notif-btn:active{opacity:.8}
+  .timeline-section{background:var(--surface);border-radius:var(--radius-sm);padding:.7rem .9rem;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:.8rem}
+  .timeline-title{font-family:'JetBrains Mono',monospace;font-size:.45rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim2);margin-bottom:.5rem}
+  .timeline-bar{position:relative;height:16px;background:var(--surface-2);border-radius:4px;overflow:visible}
+  .timeline-seg{position:absolute;height:100%;border-radius:2px;opacity:.85;min-width:2px}
+  .timeline-hours{position:relative;height:12px;margin-top:2px}
+  .timeline-hour{position:absolute;font-family:'JetBrains Mono',monospace;font-size:.32rem;color:var(--dim2);transform:translateX(-50%)}
+  .nudge-section{margin-bottom:.8rem}
+  .nudge-btn{width:100%;font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.7rem;border:2px solid var(--red);background:rgba(200,37,51,.04);color:var(--red);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s}
+  .nudge-btn:active{background:var(--red);color:#fff;transform:scale(.98)}
+  .morning-alert{display:none;background:rgba(200,37,51,.06);border:1px solid var(--red);border-radius:var(--radius-sm);padding:.6rem .9rem;margin-bottom:.8rem;text-align:center;font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--red);font-weight:500;letter-spacing:.04em}
+  .morning-alert.active{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header"><h1>Live Status</h1><div class="subtitle" id="nameLabel">Moritz · Pomodoro</div></div>
+  <div class="conn-banner" id="connBanner"></div>
+  <div class="notif-bar" id="notifBar"><span class="notif-text">Benachrichtigungen aktivieren?</span><button class="notif-btn" onclick="requestNotifPermission()">Erlauben</button></div>
+  <div class="status-card idle" id="statusCard">
+    <div class="status-indicator"><div class="status-dot"></div><div class="status-label" id="statusLabel">Verbinde...</div></div>
+    <div class="task-name" id="taskName">—</div>
+    <div class="timer-display inactive" id="timerDisplay">--:--</div>
+    <div class="timer-end" id="timerEnd"></div>
+    <div class="location-row"><span class="location-icon" id="locIcon">📍</span><span id="locText">Unbekannt</span></div>
+  </div>
+  <div class="shame-banner" id="shameBanner">
+    <div class="shame-banner-title">💀 Schandzeit</div>
+    <div class="shame-banner-time" id="shameTime">+0:00</div>
+    <div class="shame-banner-sub" id="shameSub">Macht gerade nichts.</div>
+    <div class="shame-banner-total" id="shameTotal"></div>
+  </div>
+  <div class="day-summary" id="daySummary">
+    <div class="day-summary-title">Heute</div>
+    <div class="day-row"><span class="day-row-label">🏥 Arbeit</span><span class="day-row-value work" id="dayWork">—</span></div>
+    <div class="day-row"><span class="day-row-label">🎯 Fokus</span><span class="day-row-value focus" id="dayFocus">0 min</span></div>
+    <div class="day-row"><span class="day-row-label">💀 Schandzeit</span><span class="day-row-value idle" id="dayIdle">0 min</span></div>
+    <hr class="day-divider">
+    <div class="day-row"><span class="day-row-label">Produktiv</span><span class="day-row-value ratio" id="dayRatio">—</span></div>
+    <div class="ratio-bar"><div class="ratio-fill-work" id="ratioWork" style="width:0"></div><div class="ratio-fill-focus" id="ratioFocus" style="width:0"></div><div class="ratio-fill-idle" id="ratioIdle" style="width:0"></div></div>
+  </div>
+  <div class="morning-alert" id="morningAlert">☀️ Moritz hat heute noch nicht angefangen!</div>
+  <div class="timeline-section" id="timelineSection" style="display:none">
+    <div class="timeline-title">Tagesverlauf</div>
+    <div class="timeline-bar" id="timelineBar"></div>
+    <div class="timeline-hours" id="timelineHours"></div>
+  </div>
+  <div class="nudge-section">
+    <button class="nudge-btn" id="nudgeBtn" onclick="sendNudge()">📢 Moritz anstupsen</button>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-value" id="statSessions">0</div><div class="stat-label">Sessions</div></div>
+    <div class="stat-box"><div class="stat-value" id="statMinutes">0</div><div class="stat-label">Minuten</div></div>
+    <div class="stat-box"><div class="stat-value" id="statStreak">0</div><div class="stat-label">Streak</div></div>
+  </div>
+  <div class="goal-section" id="goalSection" style="display:none">
+    <div class="goal-header"><div class="goal-label">Tagesziel</div><div class="goal-value" id="goalValue"><span class="gv">0</span> / 0 min</div></div>
+    <div class="goal-track"><div class="goal-fill under" id="goalFill" style="width:0%"></div><div class="goal-milestone" style="left:25%"></div><div class="goal-milestone" style="left:50%"></div><div class="goal-milestone" style="left:75%"></div></div>
+  </div>
+  <div class="rank-row">
+    <span class="rank-icon" id="rankIcon">⬡</span><span class="rank-name" id="rankName">—</span><span class="rank-xp" id="rankXp"></span>
+    <span class="streak-badge" id="streakBadge" style="display:none">🔥 0</span><span class="shield-badge" id="shieldBadge"></span>
+  </div>
+  <div class="footer"><div class="last-update" id="lastUpdate">Warte auf Daten...</div></div>
+</div>
+<script>
+const FIREBASE_CONFIG={apiKey:"AIzaSyD2JeGbi7sfA3gUrD6aGaTN7qvx4vwjj6g",authDomain:"pomodoro-status.firebaseapp.com",databaseURL:"https://pomodoro-status-default-rtdb.europe-west1.firebasedatabase.app",projectId:"pomodoro-status",storageBucket:"pomodoro-status.firebasestorage.app",messagingSenderId:"809965598837",appId:"1:809965598837:web:0211d4cd6b9fb13e3ba03c"};
+const STATUS_MAP={running:{label:'Fokus-Session'},paused:{label:'Pausiert'},completed:{label:'Fertig!'},break:{label:'Verpflegung'},working:{label:'Bei der Arbeit'},idle:{label:'Wartet'},offline:{label:'Offline'},disconnected:{label:'Fokus · Signal weg'}};
+let _timerInterval=null,_shameInterval=null,_lastStatus=null,_lastShameNotifMin=-1,_lastTimestamp=null;
+let _connected=false,_cachedTimerEnd=null,_cachedTask=null,_cachedTaskColor=null,_localTransition=false,_lastNotifTime=0;
+let _fbDb=null;
+
+function init(){
+  updateNotifBar();
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  showConnBanner('connecting','Lade...');
+  const s1=document.createElement('script');s1.src='https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js';
+  s1.onload=()=>{const s2=document.createElement('script');s2.src='https://www.gstatic.com/firebasejs/10.14.0/firebase-database-compat.js';s2.onload=()=>startFB();s2.onerror=()=>showConnBanner('error','SDK Fehler');document.head.appendChild(s2)};
+  s1.onerror=()=>showConnBanner('error','SDK Fehler');document.head.appendChild(s1);
+}
+function startFB(){
+  try{firebase.initializeApp(FIREBASE_CONFIG);const db=firebase.database();_fbDb=db;const ref=db.ref('status/moritz');
+  db.ref('.info/connected').on('value',s=>{_connected=s.val()===true;_connected?hideConnBanner():showConnBanner('connecting','Verbinde...')});
+  ref.on('value',s=>{const d=s.val();if(!d){showConnBanner('connecting','Keine Daten');return}hideConnBanner();updateUI(d)})}catch(e){showConnBanner('error',e.message)}
+}
+function fmtMin(m){if(!m||m<=0)return'\u2014';if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return r>0?h+'h '+r+'m':h+'h'}
+
+function updateUI(data){
+  const card=document.getElementById('statusCard');
+  let status=data.status||'offline';_localTransition=false;
+  if(status==='running'&&data.timerEnd){_cachedTimerEnd=data.timerEnd;_cachedTask=data.task;_cachedTaskColor=data.taskColor}
+  if(status==='offline'&&_cachedTimerEnd&&_cachedTimerEnd>Date.now()){status='disconnected';if(!data.task&&_cachedTask)data={...data,task:_cachedTask,taskColor:_cachedTaskColor,timerEnd:_cachedTimerEnd};if(!data.timerEnd&&_cachedTimerEnd)data={...data,timerEnd:_cachedTimerEnd}}
+  if(['idle','completed','break','working'].includes(status)){_cachedTimerEnd=null;_cachedTask=null;_cachedTaskColor=null}
+  const info=STATUS_MAP[status]||STATUS_MAP.offline;
+
+  // Notifications
+  const isRL=s=>s==='running'||s==='disconnected';let shouldNotify=false;
+  if(_lastStatus!==null&&_lastStatus!==status&&!(isRL(_lastStatus)&&isRL(status)))shouldNotify=true;
+  if(status==='idle'&&data.isShaming&&data.idleSessionMin!=null){
+    const sm=data.idleSessionMin,iv=sm<10?2:5,th=Math.floor(sm/iv)*iv;
+    if(th>_lastShameNotifMin||(sm<=1&&_lastShameNotifMin<0)){_lastShameNotifMin=th;shouldNotify=true}
+  }else _lastShameNotifMin=-1;
+  if(shouldNotify)sendNotification(data,status);_lastStatus=status;
+
+  card.className='status-card '+status;
+  document.getElementById('statusLabel').textContent=info.label;
+  const taskEl=document.getElementById('taskName');
+  if(status==='working'){taskEl.textContent='Im Spital';taskEl.style.color='var(--blue)'}
+  else if(data.task){taskEl.textContent=data.task;taskEl.style.color=data.taskColor||'var(--text)'}
+  else{taskEl.textContent='\u2014';taskEl.style.color='var(--dim2)'}
+
+  clearInterval(_timerInterval);
+  const timerEl=document.getElementById('timerDisplay'),endEl=document.getElementById('timerEnd');
+  if((status==='running'||status==='disconnected')&&data.timerEnd){
+    timerEl.className='timer-display';timerEl.style.color='';const isDc=status==='disconnected';
+    const upd=()=>{const rem=Math.max(0,Math.ceil((data.timerEnd-Date.now())/1000)),m=Math.floor(rem/60),s=rem%60;timerEl.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');if(rem<=0){clearInterval(_timerInterval);_cachedTimerEnd=null;if(isDc){_localTransition=true;card.className='status-card completed';document.getElementById('statusLabel').textContent='Wahrsch. fertig';timerEl.className='timer-display inactive';timerEl.textContent='\u2713';endEl.textContent=''}}};
+    upd();_timerInterval=setInterval(upd,1000);
+    const end=new Date(data.timerEnd);endEl.textContent='fertig um '+end.getHours().toString().padStart(2,'0')+':'+end.getMinutes().toString().padStart(2,'0');
+  }else if(status==='break'){timerEl.className='timer-display';timerEl.style.color='var(--blue)';timerEl.textContent='\uD83E\uDD64';endEl.textContent='Isst/trinkt gerade'}
+  else if(status==='working'){timerEl.className='timer-display';timerEl.style.color='var(--blue)';if(data.workStart){const upd=()=>{const el=Math.max(0,Math.floor((Date.now()-data.workStart)/1000)),h=Math.floor(el/3600),m=Math.floor((el%3600)/60);timerEl.textContent=h>0?h+'h '+m+'m':m+' min'};upd();_timerInterval=setInterval(upd,10000)}else timerEl.textContent='\uD83C\uDFE5';endEl.textContent='Bei der Arbeit'}
+  else if(status==='paused'&&data.pausedRemaining){timerEl.className='timer-display';timerEl.style.color='';const rem=Math.ceil(data.pausedRemaining/1000),m=Math.floor(rem/60),s=rem%60;timerEl.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');endEl.textContent='\u23F8 pausiert'}
+  else{timerEl.className='timer-display inactive';timerEl.style.color='';timerEl.textContent='--:--';endEl.textContent=''}
+
+  const locI=document.getElementById('locIcon'),locT=document.getElementById('locText');
+  if(status==='working'||data.isAtWork===true){locI.textContent='\uD83C\uDFE5';locT.textContent='Am Arbeitsort'}
+  else if(data.isHome===true){locI.textContent='\uD83C\uDFE0';locT.textContent='Zuhause \u00B7 M\u00E4rwil'}
+  else if(data.isHome===false){locI.textContent='\uD83C\uDF0D';locT.textContent='Unterwegs'}
+  else{locI.textContent='\uD83D\uDCCD';locT.textContent='Unbekannt'}
+
+  // Shame
+  const sb=document.getElementById('shameBanner'),isShaming=data.isShaming===true;
+  clearInterval(_shameInterval);sb.style.animation='';
+  if(isShaming&&data.idleSince&&status==='idle'){
+    card.classList.add('shaming');sb.classList.add('active');document.getElementById('statusLabel').textContent='Schandzeit';
+    const upd=()=>{const el=(Date.now()-data.idleSince)/1000,grS=(data.idleGrace!=null?data.idleGrace:15)*60,oS=Math.max(0,Math.floor(el-grS)),om=Math.floor(oS/60),os=oS%60;
+    document.getElementById('shameTime').textContent='+'+om+':'+String(os).padStart(2,'0');
+    const msgs=['Macht gerade nichts.','Sitzt rum.','Prokrastiniert.','Immer noch nichts.','Sag ihm Bescheid.','Ignoriert die App.'];
+    document.getElementById('shameSub').textContent=msgs[Math.min(Math.floor(om/3),msgs.length-1)];
+    const t=data.idleMinutes||0;document.getElementById('shameTotal').textContent=t>0?'Heute insgesamt: '+t+' min verschwendet':''};
+    upd();_shameInterval=setInterval(upd,1000);
+  }else{card.classList.remove('shaming');sb.classList.remove('active');
+    if((data.idleMinutes||0)>0&&status==='idle'){sb.classList.add('active');document.getElementById('shameTime').textContent='\uD83D\uDC80';document.getElementById('shameSub').textContent='Heute '+(data.idleMinutes||0)+' min Schandzeit';document.getElementById('shameTotal').textContent='';sb.style.animation='none'}
+  }
+
+  // Day summary
+  const wM=data.todayWorkMinutes||0,fM=data.todayMinutes||0,iM=data.todayIdleMinutes||0;
+  document.getElementById('dayWork').textContent=wM>0?fmtMin(wM):'\u2014';
+  document.getElementById('dayFocus').textContent=fM>0?(data.todayCount||0)+'\u00D7 \u00B7 '+fmtMin(fM):'0 min';
+  document.getElementById('dayIdle').textContent=iM>0?fmtMin(iM):'0 min';
+  document.getElementById('dayIdle').style.fontWeight=iM>0?'700':'400';
+  const tA=wM+fM,tAll=tA+iM;
+  if(tAll>0){document.getElementById('ratioWork').style.width=Math.round(wM/tAll*100)+'%';document.getElementById('ratioFocus').style.width=Math.round(fM/tAll*100)+'%';document.getElementById('ratioIdle').style.width=Math.round(iM/tAll*100)+'%';document.getElementById('dayRatio').textContent=tA>0?Math.round(tA/(tA+iM)*100)+'%':'0%'}
+  else{document.getElementById('ratioWork').style.width='0';document.getElementById('ratioFocus').style.width='0';document.getElementById('ratioIdle').style.width='0';document.getElementById('dayRatio').textContent='\u2014'}
+
+  document.getElementById('statSessions').textContent=data.todayCount||0;
+  document.getElementById('statMinutes').textContent=data.todayMinutes||0;
+  document.getElementById('statStreak').textContent=data.streak||0;
+  if(data.rankIcon)document.getElementById('rankIcon').textContent=data.rankIcon;
+  if(data.rank)document.getElementById('rankName').textContent=data.rank;
+  if(data.totalXp!=null)document.getElementById('rankXp').textContent=(data.totalXp||0).toLocaleString()+' XP';
+  const stb=document.getElementById('streakBadge');if(data.streak>1){stb.style.display='';stb.textContent='\uD83D\uDD25 '+data.streak+' Tage'}else stb.style.display='none';
+  document.getElementById('shieldBadge').textContent=(data.shields||0)>0?'\uD83D\uDEE1'.repeat(data.shields):'';
+
+  const goalSec=document.getElementById('goalSection'),tMin=data.todayMinutes||0,dG=data.dailyGoal||0;
+  if(dG>0){goalSec.style.display='';const pct=Math.min(100,(tMin/dG)*100),done=tMin>=dG;
+  document.getElementById('goalValue').innerHTML=done?'<span class="gv gdone">\u2713 '+tMin+'</span> / '+dG+' min':'<span class="gv">'+tMin+'</span> / '+dG+' min';
+  const fill=document.getElementById('goalFill');fill.style.width=pct+'%';fill.className='goal-fill '+(done?'done':'under');
+  document.querySelectorAll('.goal-milestone').forEach(m=>{const mp=parseFloat(m.style.left);m.classList.toggle('hit',tMin>=dG*(mp/100))})}else goalSec.style.display='none';
+
+  _lastTimestamp=data.timestamp||null;renderLastUpdate();
+
+  // Timeline
+  renderStatusTimeline(data.timeline||[]);
+
+  // Morning alert
+  const ma=document.getElementById('morningAlert');
+  if(data.morningAlert&&(data.todayCount||0)===0&&status!=='working'){ma.classList.add('active')}
+  else{ma.classList.remove('active')}
+}
+
+function renderStatusTimeline(tl){
+  const sec=document.getElementById('timelineSection');
+  const bar=document.getElementById('timelineBar');
+  const hours=document.getElementById('timelineHours');
+  if(!tl||tl.length===0){sec.style.display='none';return}
+  sec.style.display='';
+  // Find day range
+  const first=tl[0].time;const now=Date.now();
+  const dayStart=new Date(first);dayStart.setMinutes(dayStart.getMinutes()-30); // 30min padding
+  const totalMs=Math.max(1,now-dayStart.getTime());
+  const colors={'work-start':'var(--blue)','pomo-start':'var(--accent)','idle-start':'var(--red-soft)','break':'#6fa3e0','morning':'#4a8fe7'};
+  let segs='';
+  for(let i=0;i<tl.length;i++){
+    const ev=tl[i];
+    if(!colors[ev.type])continue;
+    const end=i<tl.length-1?tl[i+1].time:now;
+    const dur=end-ev.time;if(dur<30000)continue;
+    const left=Math.max(0,Math.min(100,(ev.time-dayStart.getTime())/totalMs*100));
+    const width=Math.max(0.5,Math.min(100-left,dur/totalMs*100));
+    const title=(ev.label||ev.type)+' ('+Math.round(dur/60000)+'m)';
+    segs+=`<div class="timeline-seg" title="${title}" style="left:${left}%;width:${width}%;background:${colors[ev.type]}"></div>`;
+  }
+  bar.innerHTML=segs;
+  // Hour markers
+  let hHtml='';
+  const startH=dayStart.getHours();const nowH=new Date().getHours();
+  for(let h=startH;h<=nowH;h++){
+    const hTime=new Date(dayStart);hTime.setHours(h,0,0,0);if(hTime<dayStart)continue;
+    const pct=(hTime.getTime()-dayStart.getTime())/totalMs*100;
+    if(pct>=0&&pct<=100)hHtml+=`<div class="timeline-hour" style="left:${pct}%">${h}</div>`;
+  }
+  hours.innerHTML=hHtml;
+}
+
+function sendNudge(){
+  if(!_fbDb){alert('Nicht verbunden');return}
+  const btn=document.getElementById('nudgeBtn');
+  const msgs=['Fang an!','Jetzt starten!','Moritz! Los!','Beweg dich!','Pomodoro. Jetzt.','Wiebke ist nicht begeistert.'];
+  const msg=msgs[Math.floor(Math.random()*msgs.length)];
+  _fbDb.ref('status/moritz/nudge').set({time:Date.now(),message:msg,from:'Wiebke'}).then(()=>{
+    btn.textContent='\u2713 Gesendet!';btn.style.background='var(--accent)';btn.style.color='#fff';btn.style.borderColor='var(--accent)';
+    setTimeout(()=>{btn.textContent='\uD83D\uDCE2 Moritz anstupsen';btn.style.background='';btn.style.color='';btn.style.borderColor=''},3000);
+  }).catch(()=>{btn.textContent='Fehler';setTimeout(()=>{btn.textContent='\uD83D\uDCE2 Moritz anstupsen'},2000)});
+}
+
+function updateNotifBar(){const b=document.getElementById('notifBar');if(!('Notification' in window)||Notification.permission!=='default')b.classList.add('hidden');else b.classList.remove('hidden')}
+function requestNotifPermission(){if(!('Notification' in window))return;Notification.requestPermission().then(p=>updateNotifBar())}
+
+function sendNotification(data,status){
+  if(Notification.permission!=='granted')return;const now=Date.now();if(now-_lastNotifTime<3000)return;_lastNotifTime=now;
+  let title,body;const task=data.task||'';
+  switch(status){
+    case 'running':title='\u25B6 '+task;body=data.duration+' min gestartet \u00B7 Heute: '+(data.todayMinutes||0)+' min';break;
+    case 'completed':title='\u2705 '+(data.completedTask||task)+' fertig!';body=(data.completedMinutes||data.duration)+' min \u00B7 #'+(data.todayCount||0)+' \u00B7 Heute: '+(data.todayMinutes||0)+' min';break;
+    case 'break':title='\uD83E\uDD64 Verpflegung';body=(data.todayCount||0)+' Sessions, '+(data.todayMinutes||0)+' min heute';break;
+    case 'working':title='\uD83C\uDFE5 Arbeit';body='Moritz ist im Spital angekommen';break;
+    case 'paused':title='\u23F8 '+task+' pausiert';body=data.pausedRemaining?Math.ceil(data.pausedRemaining/60000)+' min \u00FCbrig':'pausiert';break;
+    case 'idle':
+      if(!data.isShaming)return;
+      const sm=data.idleSessionMin||0,total=data.idleMinutes||0;
+      if(sm<=1){title='\uD83D\uDC80 Schandzeit!';body='Moritz macht nichts. Grace Period abgelaufen.'}
+      else{const msgs=['Er prokrastiniert seit '+sm+' min.','Sag ihm Bescheid. '+sm+' min.',sm+' min. Heute: '+total+' min total.','Er sitzt seit '+sm+' min rum.','Moritz. '+sm+' Min. Nichts.','Sag was. '+sm+' min Schandzeit.'];
+      title='\uD83D\uDC80 +'+sm+'m';body=msgs[Math.floor(sm/2)%msgs.length]}break;
+    default:return;
+  }
+  const isS=status==='idle'&&data.isShaming,vib=isS?[400,80,400,80,400,80,600]:undefined;
+  if(navigator.serviceWorker?.controller){navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:'icon-192.png',badge:'icon-192.png',tag:'moritz-status',renotify:true,requireInteraction:isS,vibrate:vib,silent:status==='paused'})).catch(()=>{try{new Notification(title,{body,icon:'icon-192.png',tag:'moritz-status'})}catch(e){}})}
+  else{try{new Notification(title,{body,icon:'icon-192.png',tag:'moritz-status'})}catch(e){}}
+}
+
+function showConnBanner(t,m){const e=document.getElementById('connBanner');e.className='conn-banner '+t;e.textContent=m}
+function hideConnBanner(){document.getElementById('connBanner').className='conn-banner'}
+function renderLastUpdate(){
+  if(!_lastTimestamp)return;const d=new Date(_lastTimestamp),now=new Date(),dm=Math.floor((now-d)/60000);
+  let ago;if(dm<1)ago='gerade eben';else if(dm<60)ago='vor '+dm+' min';else ago='vor '+Math.floor(dm/60)+' h';
+  const el=document.getElementById('lastUpdate');el.textContent='Aktualisiert '+ago+' \u00B7 '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+  const card=document.getElementById('statusCard');
+  if(dm>=5&&!card.classList.contains('disconnected')&&!_localTransition){el.style.color='var(--yellow)';el.textContent+=' \u26A0';if(!card.classList.contains('offline'))card.style.opacity='0.6'}
+  else{el.style.color='';card.style.opacity=''}
+}
+init();setInterval(renderLastUpdate,10000);
+</script>
+</body>
+</html>
